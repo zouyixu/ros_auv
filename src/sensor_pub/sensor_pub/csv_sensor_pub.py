@@ -1,4 +1,3 @@
-
 import csv
 
 import rclpy
@@ -7,6 +6,34 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistStamped
 
+import math
+
+def euler_to_quaternion(roll, pitch, yaw):
+    """
+    输入：欧拉角，单位为度
+    输出：四元数 (x, y, z, w)
+    """
+
+    # 角度转换为弧度
+    roll = math.radians(roll)
+    pitch = math.radians(pitch)
+    yaw = math.radians(yaw)
+
+    cr = math.cos(roll / 2)
+    sr = math.sin(roll / 2)
+
+    cp = math.cos(pitch / 2)
+    sp = math.sin(pitch / 2)
+
+    cy = math.cos(yaw / 2)
+    sy = math.sin(yaw / 2)
+
+    w = cr * cp * cy + sr * sp * sy
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+
+    return x, y, z, w
 
 class CSVSensorPublisher(Node):
 
@@ -14,7 +41,7 @@ class CSVSensorPublisher(Node):
         super().__init__('csv_sensor_publisher')
 
         # ROS 参数
-        self.declare_parameter('csv_path', 'sensor_data.csv')
+        self.declare_parameter('csv_path', '/home/zouyixu/Documents/ros_auv/src/sensor_pub/data/example.csv')
         self.declare_parameter('rate_hz', 10.0)
         self.declare_parameter('frame_id', 'base_link')
 
@@ -34,7 +61,8 @@ class CSVSensorPublisher(Node):
         required_columns = [
             'IMU_GX', 'IMU_GY', 'IMU_GZ',
             'IMU_AX', 'IMU_AY', 'IMU_AZ',
-            'DVL_BI_tv', 'DVL_BI_lv', 'DVL_BI_nv'
+            'IMU_ROLL', 'IMU_PITCH', 'IMU_HEADING',
+            'DVL_BI_tv', 'DVL_BI_lv', 'DVL_BI_nv'   
         ]
 
         missing = set(required_columns) - set(self.data[0].keys())
@@ -92,8 +120,15 @@ class CSVSensorPublisher(Node):
         imu_msg.linear_acceleration.y = float(row['IMU_AY'])
         imu_msg.linear_acceleration.z = float(row['IMU_AZ'])
 
-        # 暂无姿态数据
-        imu_msg.orientation_covariance[0] = -1.0
+        # 欧拉角转四元数
+        roll = float(row['IMU_ROLL'])
+        pitch = float(row['IMU_PITCH'])
+        yaw = float(row['IMU_HEADING'])
+        x, y, z, w = euler_to_quaternion(roll, pitch, yaw)
+        imu_msg.orientation.x = x
+        imu_msg.orientation.y = y
+        imu_msg.orientation.z = z
+        imu_msg.orientation.w = w
 
         self.imu_pub.publish(imu_msg)
 

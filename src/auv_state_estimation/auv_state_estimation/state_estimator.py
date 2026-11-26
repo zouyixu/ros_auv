@@ -1,4 +1,3 @@
-
 import rclpy
 from rclpy.node import Node
 
@@ -9,19 +8,6 @@ from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistStamped, TransformStamped
 from nav_msgs.msg import Odometry
 from tf2_ros import TransformBroadcaster
-
-
-def quaternion_multiply(q1, q2):
-    x1, y1, z1, w1 = q1
-    x2, y2, z2, w2 = q2
-
-    return np.array([
-        w1*x2 + x1*w2 + y1*z2 - z1*y2,
-        w1*y2 - x1*z2 + y1*w2 + z1*x2,
-        w1*z2 + x1*y2 - y1*x2 + z1*w2,
-        w1*w2 - x1*x2 - y1*y2 - z1*z2
-    ])
-
 
 def rotate_vector(q, v):
     # 将机体坐标系向量转换到世界坐标系
@@ -43,6 +29,7 @@ class AUVStateEstimator(Node):
         # AUV 当前状态
         self.position = np.zeros(3)
         self.velocity = np.zeros(3)
+        self.velocity_angular = np.zeros(3)
 
         # 四元数顺序：x, y, z, w
         self.orientation = np.array([0., 0., 0., 1.])
@@ -53,14 +40,14 @@ class AUVStateEstimator(Node):
         # 订阅传感器
         self.imu_sub = self.create_subscription(
             Imu,
-            '/imu/data',
+            '/imu/data_raw',
             self.imu_callback,
             10
         )
 
         self.dvl_sub = self.create_subscription(
             TwistStamped,
-            '/dvl/velocity',
+            '/dvl/twist',
             self.dvl_callback,
             10
         )
@@ -95,25 +82,28 @@ class AUVStateEstimator(Node):
         if dt <= 0 or dt > 0.5:
             return
 
-        # 读取陀螺仪角速度
-        wx = msg.angular_velocity.x
-        wy = msg.angular_velocity.y
-        wz = msg.angular_velocity.z
+        # 读取角速度
+        self.velocity_angular = np.array([
+            msg.angular_velocity.x,
+            msg.angular_velocity.y,
+            msg.angular_velocity.z
+        ])
 
-        omega = np.array([wx, wy, wz, 0.0])
-
-        # 四元数积分
-        q_dot = 0.5 * quaternion_multiply(
-            self.orientation, omega
-        )
-
-        self.orientation += q_dot * dt
+        # 读取四元数
+        q = np.array([
+            msg.orientation.x,
+            msg.orientation.y,
+            msg.orientation.z,
+            msg.orientation.w
+        ])
 
         # 四元数归一化
-        norm = np.linalg.norm(self.orientation)
+        norm = np.linalg.norm(q)
 
-        if norm > 1e-12:
-            self.orientation /= norm
+        if norm < 1e-12:
+            return
+
+        self.orientation = q / norm
 
     def dvl_callback(self, msg):
 
@@ -173,6 +163,11 @@ class AUVStateEstimator(Node):
         odom.twist.twist.linear.y = float(self.velocity[1])
         odom.twist.twist.linear.z = float(self.velocity[2])
 
+        # 角速度
+        odom.twist.twist.angular.x = float(self.velocity_angular[0])
+        odom.twist.twist.angular.y = float(self.velocity_angular[1])
+        odom.twist.twist.angular.z = float(self.velocity_angular[2])
+
         self.odom_pub.publish(odom)
 
         # 发布 TF
@@ -180,7 +175,7 @@ class AUVStateEstimator(Node):
 
         tf.header.stamp = stamp
         tf.header.frame_id = 'odom'
-        tf.child_frame_id = 'base_link'
+        tf.child_frame_id = 'base_link' 
 
         tf.transform.translation.x = float(self.position[0])
         tf.transform.translation.y = float(self.position[1])

@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'state_estimator = auv_state_estimation.state_estimator:main',
         ],
     },
 )
