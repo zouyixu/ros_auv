@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 
-from oculus_interfaces.msg import Ping
+from oculus_ros2.oculus_interfaces.msg import Ping
 
 
 class SonarSimulator(Node):
@@ -17,7 +17,7 @@ class SonarSimulator(Node):
         super().__init__('sonar_simulator')
 
         # 参数配置
-        self.declare_parameter('data_dir', '~/sonar_data')
+        self.declare_parameter('data_dir', '~/Documents/frames_1')
         self.declare_parameter('file_pattern', 'frame_*')
         self.declare_parameter('n_ranges', 401)
         self.declare_parameter('n_beams', 512)
