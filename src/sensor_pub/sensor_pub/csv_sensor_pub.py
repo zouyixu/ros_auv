@@ -1,4 +1,5 @@
 import csv
+import os
 
 import rclpy
 from rclpy.node import Node
@@ -41,11 +42,11 @@ class CSVSensorPublisher(Node):
         super().__init__('csv_sensor_publisher')
 
         # ROS 参数
-        self.declare_parameter('csv_path', '/home/zouyixu/Documents/ros_auv/src/sensor_pub/data/example.csv')
+        self.declare_parameter('csv_path', '~/Documents/ros_auv/src/sensor_pub/data/example.csv')
         self.declare_parameter('rate_hz', 10.0)
         self.declare_parameter('frame_id', 'base_link')
 
-        csv_path = self.get_parameter('csv_path').value
+        csv_path = os.path.expanduser(self.get_parameter('csv_path').value)
         self.rate_hz = self.get_parameter('rate_hz').value
         self.frame_id = self.get_parameter('frame_id').value
 
@@ -149,6 +150,7 @@ class CSVSensorPublisher(Node):
 
 
 def main(args=None):
+    
 
     rclpy.init(args=args)
 
