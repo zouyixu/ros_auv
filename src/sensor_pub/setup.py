@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'csv_sensor_pub = sensor_pub.csv_sensor_pub:main',
+            'moss_sensor_pub = sensor_pub.moss_sensor_pub:main',
         ],
     },
 )
